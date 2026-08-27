@@ -1,4 +1,4 @@
-const API_URL = "/students";
+const API_URL = "/api/students";
 
 
 // Get students when page loads
