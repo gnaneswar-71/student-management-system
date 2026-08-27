@@ -8,43 +8,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (index.html, style.css, script.js) from this folder
-app.use(express.static(__dirname));
-
 
 // ===============================
-// MySQL Connection
+// MySQL Connection Pool
 // ===============================
-// Falls back to MYSQL* env vars too, since some hosting
-// platforms (e.g. Railway) inject those names instead of DB_*.
+// A POOL (not a single createConnection) is required here because
+// this file runs as a serverless function on Vercel: each cold
+// start / invocation can spin up a fresh instance, and a pool
+// handles reconnecting automatically instead of failing on a
+// stale single connection.
+//
+// These values MUST come from an external MySQL host (Vercel does
+// not provide a database). Set them in:
+// Vercel Dashboard -> Project -> Settings -> Environment Variables
 
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || process.env.MYSQLHOST,
-    port: process.env.DB_PORT || process.env.MYSQLPORT || 3306,
-    user: process.env.DB_USER || process.env.MYSQLUSER,
-    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD,
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE
-});
-
-
-// Connect to MySQL
-db.connect((err) => {
-
-    if (err) {
-        console.log("MySQL connection failed:", err.message);
-    } else {
-        console.log("MySQL connected successfully");
-    }
-
-});
-
-
-// ===============================
-// Serve the main page
-// ===============================
-
-app.get("/", (req, res) => {
-    res.sendFile(__dirname + "/index.html");
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 3306,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 5,
+    queueLimit: 0
 });
 
 
@@ -56,7 +42,7 @@ app.get("/students", (req, res) => {
 
     const sql = "SELECT * FROM students";
 
-    db.query(sql, (err, result) => {
+    pool.query(sql, (err, result) => {
 
         if (err) {
             return res.status(500).json({
@@ -84,14 +70,13 @@ app.post("/students", (req, res) => {
         VALUES (?, ?, ?, ?, ?)
     `;
 
-    db.query(
+    pool.query(
         sql,
         [name, email, phone, course, age],
         (err, result) => {
 
             if (err) {
 
-                // Duplicate name or email
                 if (err.code === "ER_DUP_ENTRY") {
 
                     return res.status(400).json({
@@ -133,14 +118,13 @@ app.put("/students/:id", (req, res) => {
         WHERE id = ?
     `;
 
-    db.query(
+    pool.query(
         sql,
         [name, email, phone, course, age, id],
         (err, result) => {
 
             if (err) {
 
-                // Duplicate name or email
                 if (err.code === "ER_DUP_ENTRY") {
 
                     return res.status(400).json({
@@ -183,7 +167,7 @@ app.delete("/students/:id", (req, res) => {
 
     const sql = "DELETE FROM students WHERE id = ?";
 
-    db.query(sql, [id], (err, result) => {
+    pool.query(sql, [id], (err, result) => {
 
         if (err) {
 
@@ -211,11 +195,21 @@ app.delete("/students/:id", (req, res) => {
 
 
 // ===============================
-// Start Server
+// Export for Vercel / run locally
 // ===============================
+// On Vercel this file is loaded as a serverless function — Vercel
+// itself calls the exported "app" on each request, so app.listen()
+// must NOT run there. Running "node backend/server.js" locally
+// still works normally for testing.
 
-const PORT = process.env.PORT || 3000;
+if (require.main === module) {
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-});
+    const PORT = process.env.PORT || 3000;
+
+    app.listen(PORT, () => {
+        console.log(`Server running locally on port ${PORT}`);
+    });
+
+}
+
+module.exports = app;

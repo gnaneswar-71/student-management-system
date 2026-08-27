@@ -1,3 +1,11 @@
+// Because vercel.json routes /students requests to the backend
+// serverless function on the SAME domain as this page, we use a
+// relative path here — NOT http://localhost:5000/... and NOT the
+// full Vercel URL. This avoids CORS issues entirely.
+//
+// If you ever host the backend on a SEPARATE domain (e.g. Railway,
+// Render), replace the line below with the full backend URL, e.g.:
+//   const API_URL = "https://your-backend.up.railway.app/students";
 const API_URL = "/students";
 
 
