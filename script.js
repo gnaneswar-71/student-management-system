@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000/students";
+const API_URL = "/students";
 
 
 // Get students when page loads
