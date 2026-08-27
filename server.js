@@ -7,18 +7,23 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files (index.html, style.css, script.js) from this folder
 app.use(express.static(__dirname));
 
 
 // ===============================
 // MySQL Connection
 // ===============================
+// Falls back to MYSQL* env vars too, since some hosting
+// platforms (e.g. Railway) inject those names instead of DB_*.
 
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    host: process.env.DB_HOST || process.env.MYSQLHOST,
+    port: process.env.DB_PORT || process.env.MYSQLPORT || 3306,
+    user: process.env.DB_USER || process.env.MYSQLUSER,
+    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD,
+    database: process.env.DB_NAME || process.env.MYSQLDATABASE
 });
 
 
@@ -35,7 +40,7 @@ db.connect((err) => {
 
 
 // ===============================
-// Test Route
+// Serve the main page
 // ===============================
 
 app.get("/", (req, res) => {
