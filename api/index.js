@@ -26,20 +26,24 @@ const db = mysql.createConnection({
 // ===============================
 
 db.connect((err) => {
+
     if (err) {
         console.log("MySQL connection failed:", err.message);
     } else {
         console.log("MySQL connected successfully");
     }
+
 });
 
 
 // ===============================
-// Test API
+// TEST
 // ===============================
 
-app.get("/api", (req, res) => {
-    res.send("Student Management System Backend Running");
+app.get("/", (req, res) => {
+    res.json({
+        message: "Student Management API is working"
+    });
 });
 
 
@@ -47,7 +51,7 @@ app.get("/api", (req, res) => {
 // GET Students
 // ===============================
 
-app.get("/api/students", (req, res) => {
+app.get("/students", (req, res) => {
 
     const sql = "SELECT * FROM students";
 
@@ -60,7 +64,9 @@ app.get("/api/students", (req, res) => {
         }
 
         res.json(result);
+
     });
+
 });
 
 
@@ -68,7 +74,7 @@ app.get("/api/students", (req, res) => {
 // ADD Student
 // ===============================
 
-app.post("/api/students", (req, res) => {
+app.post("/students", (req, res) => {
 
     const { name, email, phone, course, age } = req.body;
 
@@ -94,14 +100,17 @@ app.post("/api/students", (req, res) => {
                 return res.status(500).json({
                     message: err.message
                 });
+
             }
 
             res.status(201).json({
                 message: "Student added successfully",
                 id: result.insertId
             });
+
         }
     );
+
 });
 
 
@@ -109,7 +118,7 @@ app.post("/api/students", (req, res) => {
 // UPDATE Student
 // ===============================
 
-app.put("/api/students/:id", (req, res) => {
+app.put("/students/:id", (req, res) => {
 
     const { id } = req.params;
 
@@ -137,6 +146,7 @@ app.put("/api/students/:id", (req, res) => {
                 return res.status(500).json({
                     message: err.message
                 });
+
             }
 
             if (result.affectedRows === 0) {
@@ -148,8 +158,10 @@ app.put("/api/students/:id", (req, res) => {
             res.json({
                 message: "Student updated successfully"
             });
+
         }
     );
+
 });
 
 
@@ -157,7 +169,7 @@ app.put("/api/students/:id", (req, res) => {
 // DELETE Student
 // ===============================
 
-app.delete("/api/students/:id", (req, res) => {
+app.delete("/students/:id", (req, res) => {
 
     const { id } = req.params;
 
@@ -180,7 +192,9 @@ app.delete("/api/students/:id", (req, res) => {
         res.json({
             message: "Student deleted successfully"
         });
+
     });
+
 });
 
 
