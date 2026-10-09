@@ -1,215 +1,104 @@
 const express = require("express");
 const cors = require("cors");
-const mysql = require("mysql2");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+
+const { pool, testConnection } = require("./config/database");
+const studentRoutes = require("./routes/studentRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const healthRoutes = require("./routes/healthRoutes");
+const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
+// ======================================
+// 1. GLOBAL MIDDLEWARES
+// ======================================
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
+// Serve frontend static assets from public/
+app.use(express.static(path.join(__dirname, "public")));
 
-// ===============================
-// MySQL Connection Pool
-// ===============================
-// A POOL (not a single createConnection) is required here because
-// this file runs as a serverless function on Vercel: each cold
-// start / invocation can spin up a fresh instance, and a pool
-// handles reconnecting automatically instead of failing on a
-// stale single connection.
-//
-// These values MUST come from an external MySQL host (Vercel does
-// not provide a database). Set them in:
-// Vercel Dashboard -> Project -> Settings -> Environment Variables
-
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 5,
-    queueLimit: 0
+// ======================================
+// 2. ROOT & STATIC ROUTING
+// ======================================
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// ======================================
+// 3. REST API ENDPOINTS
+// ======================================
+// Health Check: /api/health
+app.use("/api/health", healthRoutes);
 
-// ===============================
-// GET - Get All Students
-// ===============================
+// Dashboard Analytics: /api/dashboard/stats
+app.use("/api/dashboard", dashboardRoutes);
 
-app.get("/students", (req, res) => {
+// Students CRUD: /api/students
+app.use("/api/students", studentRoutes);
 
-    const sql = "SELECT * FROM students";
+// Backward-compatibility alias: /students
+app.use("/students", studentRoutes);
 
-    pool.query(sql, (err, result) => {
+// ======================================
+// 4. ERROR HANDLING MIDDLEWARE
+// ======================================
+// 404 Not Found
+app.use(notFoundHandler);
 
-        if (err) {
-            return res.status(500).json({
-                error: err.message
-            });
-        }
+// Centralized error handler
+app.use(errorHandler);
 
-        res.json(result);
-
-    });
-
-});
-
-
-// ===============================
-// POST - Add Student
-// ===============================
-
-app.post("/students", (req, res) => {
-
-    const { name, email, phone, course, age } = req.body;
-
-    const sql = `
-        INSERT INTO students (name, email, phone, course, age)
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    pool.query(
-        sql,
-        [name, email, phone, course, age],
-        (err, result) => {
-
-            if (err) {
-
-                if (err.code === "ER_DUP_ENTRY") {
-
-                    return res.status(400).json({
-                        message: "Name or Email already exists"
-                    });
-
-                }
-
-                return res.status(500).json({
-                    message: err.message
-                });
-
-            }
-
-            res.status(201).json({
-                message: "Student added successfully",
-                id: result.insertId
-            });
-
-        }
-    );
-
-});
-
-
-// ===============================
-// PUT - Update Student
-// ===============================
-
-app.put("/students/:id", (req, res) => {
-
-    const { id } = req.params;
-
-    const { name, email, phone, course, age } = req.body;
-
-    const sql = `
-        UPDATE students
-        SET name = ?, email = ?, phone = ?, course = ?, age = ?
-        WHERE id = ?
-    `;
-
-    pool.query(
-        sql,
-        [name, email, phone, course, age, id],
-        (err, result) => {
-
-            if (err) {
-
-                if (err.code === "ER_DUP_ENTRY") {
-
-                    return res.status(400).json({
-                        message: "Name or Email already exists"
-                    });
-
-                }
-
-                return res.status(500).json({
-                    message: err.message
-                });
-
-            }
-
-            if (result.affectedRows === 0) {
-
-                return res.status(404).json({
-                    message: "Student not found"
-                });
-
-            }
-
-            res.json({
-                message: "Student updated successfully"
-            });
-
-        }
-    );
-
-});
-
-
-// ===============================
-// DELETE - Delete Student
-// ===============================
-
-app.delete("/students/:id", (req, res) => {
-
-    const { id } = req.params;
-
-    const sql = "DELETE FROM students WHERE id = ?";
-
-    pool.query(sql, [id], (err, result) => {
-
-        if (err) {
-
-            return res.status(500).json({
-                error: err.message
-            });
-
-        }
-
-        if (result.affectedRows === 0) {
-
-            return res.status(404).json({
-                message: "Student not found"
-            });
-
-        }
-
-        res.json({
-            message: "Student deleted successfully"
-        });
-
-    });
-
-});
-
-
-// ===============================
-// Export for Vercel / run locally
-// ===============================
-// On Vercel this file is loaded as a serverless function — Vercel
-// itself calls the exported "app" on each request, so app.listen()
-// must NOT run there. Running "node backend/server.js" locally
-// still works normally for testing.
+// ======================================
+// 5. SERVER STARTUP & GRACEFUL SHUTDOWN
+// ======================================
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 
 if (require.main === module) {
+    const server = app.listen(PORT, async () => {
+        console.log("==================================================");
+        console.log(`🚀 Studify Server running on http://localhost:${PORT}`);
+        console.log(`🌐 Dashboard UI:      http://localhost:${PORT}`);
+        console.log(`🩺 Health Endpoint:   http://localhost:${PORT}/api/health`);
+        console.log(`👥 Students API:      http://localhost:${PORT}/api/students`);
+        console.log(`📊 Stats API:         http://localhost:${PORT}/api/dashboard/stats`);
+        console.log("==================================================");
 
-    const PORT = process.env.PORT || 3000;
-
-    app.listen(PORT, () => {
-        console.log(`Server running locally on port ${PORT}`);
+        // Run non-blocking database connection check on startup
+        const dbHealth = await testConnection();
+        if (dbHealth.connected) {
+            console.log(`✅ Connected to MySQL database "${dbHealth.database}" at ${dbHealth.host}:${dbHealth.port}`);
+        } else {
+            console.warn(`⚠️  MySQL connection warning: ${dbHealth.message}`);
+            console.warn("   Run 'npm run check-db' for interactive diagnostics.");
+        }
     });
 
+    // Graceful shutdown
+    function shutdown(signal) {
+        console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+        server.close(() => {
+            console.log("HTTP server closed.");
+            pool.end((err) => {
+                if (err) console.error("Error closing MySQL pool:", err.message);
+                else console.log("MySQL connection pool closed.");
+                process.exit(0);
+            });
+        });
+
+        // Force close if graceful fails within 5s
+        setTimeout(() => {
+            console.error("Forcing shutdown after timeout.");
+            process.exit(1);
+        }, 5000).unref();
+    }
+
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
+// Export app for Vercel serverless and supertest integration
 module.exports = app;

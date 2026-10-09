@@ -1,70 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=/public/index.html">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Student Management System</title>
-
-    <link rel="stylesheet" href="./style.css">
+    <title>Studify — Student Management System</title>
+    <link rel="stylesheet" href="public/style.css">
+    <script>
+        // Redirect to modern public application immediately
+        window.location.replace("/public/index.html");
+    </script>
 </head>
-
 <body>
-
-    <div class="container">
-
-        <h1>Student Management System</h1>
-
-        <!-- Student Form -->
-        <div class="form-container">
-
-            <input type="text" id="name" placeholder="Student Name">
-
-            <input type="email" id="email" placeholder="Email">
-
-            <input type="text" id="phone" placeholder="Phone">
-
-            <input type="text" id="course" placeholder="Course">
-
-            <input type="number" id="age" placeholder="Age">
-
-            <button onclick="addStudent()">Add Student</button>
-
-        </div>
-
-        <!-- Search -->
-        <input
-            type="text"
-            id="search"
-            placeholder="Search student..."
-            onkeyup="searchStudents()"
-        >
-
-        <!-- Student Table -->
-        <table>
-
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Course</th>
-                    <th>Age</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-
-            <tbody id="studentTable">
-            </tbody>
-
-        </table>
-
-    </div>
-
-    <script src="./script.js"></script>
-
+    <p>Redirecting to <a href="/public/index.html">Studify Dashboard</a>...</p>
 </body>
-
 </html>
